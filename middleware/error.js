@@ -5,11 +5,12 @@ const errorHandler = (err, req, res ,next) => {
 
     error.message = err.message;
     //Log to console for developer
-    console.log(err);
+    console.log(err.name);
     //Mongoose bad ObjectId
     if(err.name === 'CastError'){
         const message = `Resource not found with id of ${err.value}`;
         error = new ErrorResponse(message,404);
+        console.log('error-----',error)
     }
 
     //Mongoose duplicate key 
