@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
-
+const sendEmail = require('../utils/sendEmail');
 //@desc   Register User
 //@route  Post /api/v1/auth/register
 //@access Public
@@ -101,7 +101,27 @@ exports.forgetPassword = asyncHandler(async(req,res,next) => {
     const resetToken = user.getResetPasswordToken();
    
     await user.save({validateBeforeSave :false});
-    console.log(resetToken);
+
+    //Create Reset URL
+    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/resetpassword/${resetToken}`
+    console.log(resetUrl);
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to : \n\n ${resetUrl}`;
+    try {
+        await sendEmail({
+            email :user.email,
+            subject : 'Password reset token', 
+            message 
+        });
+        res.status(200).json({success : true , data: 'Email sent'});
+    } catch (err) {
+        console.log(err);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save({validateBeforeSave:false});
+
+        return next(new ErrorResponse('Email could not be sent',500));
+    }
     res.status(200).json({
         success : true,
         data : user
