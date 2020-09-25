@@ -35,10 +35,7 @@ exports.getCourses = asyncHandler(async (req,res,next) => {
 
 
 exports.getCourse = asyncHandler(async (req,res,next) => {
-    const course = await (await Course.findById(req.params.id)).populate({
-        path : 'bootcamp',
-        select : 'name description'
-    })
+    const course = await Course.findById(req.params.id)
    if(!course) {
        return next(
            new ErrorResponse(`No courses with the id of ${req.params.id}`),
@@ -62,15 +59,22 @@ exports.getCourse = asyncHandler(async (req,res,next) => {
 exports.addCourse = asyncHandler(async (req,res,next) => {
 
     req.body.bootcamp = req.params.bootcampId;
-
+    req.body.user = req.user.id;
 
     const bootcamp = await Bootcamp.findById(req.params.bootcampId)
-   if(!bootcamp) {
+    if(!bootcamp) {
        return next(
            new ErrorResponse(`No bootcamp with the id of ${req.params.bootcampId}`),
            404
        );
    }
+
+    //make sure user is bootcamp owner
+    if(bootcamp.user.toString() !== req.id && req.user.role !== 'admin'){
+        return next(
+            new ErrorResponse(`User ${req.params.id} is not authorized to add a course to bootcamp ${bootcamp._id}` ,401)
+        );
+    }
 
    const course = await Course.create(req.body);
    
@@ -96,6 +100,13 @@ exports.updateCourse = asyncHandler(async (req,res,next) => {
            404
        );
    }
+
+   //make sure user is course owner
+   if(course.user !== req.user.id && req.user.role !== 'admin'){
+    return next(
+        new ErrorResponse(`User ${req.params.id} is not authorized to update  course ${course._id}` ,401)
+    );
+}
     course = await Course.findByIdAndUpdate(req.params.id,req.body,{
         new : true,
         runValidators : true
@@ -121,6 +132,12 @@ exports.deleteCourse = asyncHandler(async (req,res,next) => {
            404
        );
    }
+    //make sure user is course owner
+    if(course.user !== req.user.id && req.user.role !== 'admin'){
+        return next(
+            new ErrorResponse(`User ${req.user.id} is not authorized to delete  course ${course._id}` ,401)
+        );
+    }
    await course.remove();
     res.status(200).json({
         success: true,
